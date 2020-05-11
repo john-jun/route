@@ -6,6 +6,7 @@ namespace Air\Routing;
 use Air\Routing\Route\RouteLeaf;
 use Air\Routing\Route\RouteTree;
 use Air\Routing\Exception\RouteException;
+use Closure;
 
 /**
  * Class Route
@@ -23,19 +24,19 @@ use Air\Routing\Exception\RouteException;
 class Route implements RouteInterface
 {
     /**
-     * @var RouteTree
+     * @var array
      */
-    private $routeTree;
-
-    /**
-     * @var RouteLeaf
-     */
-    private $routeLeaf;
+    private $prefix;
 
     /**
      * @var array
      */
-    private $attributes = [];
+    private $custom;
+
+    /**
+     * @var RouteTree
+     */
+    private $routeTree;
 
     /**
      * @var int
@@ -48,75 +49,104 @@ class Route implements RouteInterface
     public function __construct()
     {
         $this->routeTree = new RouteTree();
-        $this->routeLeaf = new RouteLeaf();
     }
 
     /**
+     * set prefix
      * @param string $prefix
-     * @return $this
+     * @return static
      */
     public function prefix(string $prefix)
     {
-        $this->attributes['prefix'][$this->groupLevel] = rtrim($prefix, '/');
+        $this->prefix[$this->groupLevel] = trim($prefix, '/');
 
         return $this;
     }
 
     /**
-     * @param $config
+     * set addition args
+     * @param $addition
      * @return $this
      */
-    public function config(array $config)
+    public function custom(array $addition)
     {
-        $this->attributes['config'][$this->groupLevel] = $config;
+        $this->custom[$this->groupLevel] = $addition;
 
         return $this;
     }
 
     /**
-     * @param callable $callback
+     * add group route
      */
-    public function group(callable $callback)
+    public function group()
     {
+        $args = func_get_args();
+
+        $closure = array_pop($args);
+        if (!$closure instanceof Closure) {
+            return;
+        }
+
+        $attr = array_shift($args);
+        if (is_string($attr)) {
+            $this->prefix($this->mergePrefix($attr, $this->groupLevel));
+        } elseif (is_array($attr)) {
+            if (isset($attr['prefix'])) {
+                $this->prefix($this->mergePrefix($attr['prefix'], $this->groupLevel));
+            }
+
+            if (isset($attr['custom'])) {
+                $this->custom($this->mergeCustom((array)$attr['custom'], $this->groupLevel));
+            }
+        }
+
         $this->groupLevel++;
-        $callback($this);
-
+        $closure($this);
         $groupLevel = $this->groupLevel--;
-        unset(
-            $this->attributes['prefix'][$groupLevel],
-            $this->attributes['config'][$groupLevel]
-        );
 
-        $groupLevel = $this->groupLevel--;
         unset(
-            $this->attributes['prefix'][$groupLevel],
-            $this->attributes['config'][$groupLevel]
+            $this->prefix[$groupLevel],
+            $this->custom[$groupLevel]
         );
     }
 
     /**
-     * @param $method
-     * @param $uri
-     * @param $handle
+     * get routeTree obj
+     * @return RouteTree
      */
-    public function addRoute($method, string $uri, string $handle)
+    public function routeTree() : RouteTree
     {
-        $this->setUri($uri)
-            ->setMethod($method)
-            ->setConfig()
-            ->setHandler($handle);
-
-        $this->getRouteTree()
-            ->insert($this->getRouteLeaf());
+        return $this->routeTree;
     }
 
     /**
-     * @param string $uri
+     * add route mapping
+     * @param $method
+     * @param string $route
+     * @param $handler
+     * @return $this
+     */
+    public function addRoute($method, string $route, $handler)
+    {
+        $routeLeaf = new RouteLeaf();
+        $routeLeaf->setUri($this->mergePrefix($route));
+        $routeLeaf->setCustom($this->mergeCustom([]));
+        $routeLeaf->setMethod($method);
+        $routeLeaf->setHandler($handler);
+
+        $this->routeTree()->insert($routeLeaf);
+
+        return $this;
+    }
+
+    /**
+     * search route
+     * @param string $route
      * @return RouteLeaf|null
      */
-    public function dispatch(string $uri)
+    public function dispatch(string $route)
     {
-        return $this->getRouteTree()->search($uri, $this->getRouteLeaf());
+        return $this->routeTree()->search($route);
     }
 
     /**
@@ -128,74 +158,45 @@ class Route implements RouteInterface
     public function __call($method, $arguments)
     {
         if (in_array($method, ['get', 'any', 'cli', 'put', 'head', 'post', 'patch', 'delete', 'options'])) {
-            $this->addRoute(strtoupper($method), ...$arguments);
-
-            return $this;
+            return $this->addRoute(strtoupper($method), ...$arguments);
         }
 
         throw new RouteException('Call to undefined method ' . __CLASS__ . '::' . $method . '()');
     }
 
     /**
-     * @return RouteLeaf
+     * @param string $prefix
+     * @param int|null $level
+     * @return string
      */
-    public function getRouteLeaf() : RouteLeaf
+    private function mergePrefix(string $prefix, int $level = null)
     {
-        return $this->routeLeaf;
-    }
+        if (is_null($level)) {
+            if ($this->prefix) {
+                return join('/', $this->prefix) . '/' . trim($prefix, '/');
+            }
 
-    /**
-     * @return RouteTree
-     */
-    public function getRouteTree() : RouteTree
-    {
-        return $this->routeTree;
-    }
-
-    /**
-     * @param string $uri
-     * @return $this
-     */
-    private function setUri(string $uri)
-    {
-        $prefix = '';
-        if (isset($this->attributes['prefix'])) {
-            $prefix = join('/', $this->attributes['prefix']);
+            return '/' . trim($prefix, '/');
         }
-        $this->getRouteLeaf()->setUri($prefix . $uri);
 
-        return $this;
+        return ($this->prefix[$level] ?? '') . '/' . trim($prefix, '/');
     }
 
     /**
-     * @param $method
-     * @return $this
+     * @param array $custom
+     * @param int|null $level
+     * @return array
      */
-    private function setMethod($method)
+    private function mergeCustom(array $custom, int $level = null)
     {
-        $this->getRouteLeaf()->setMethod((array)$method);
+        if (is_null($level)) {
+            if ($this->custom) {
+                return array_merge_recursive(...$this->custom);
+            }
 
-        return $this;
-    }
+            return $custom;
+        }
 
-    /**
-     * @return $this
-     */
-    private function setConfig()
-    {
-        $this->getRouteLeaf()->setConfig(array_merge_recursive(...($this->attributes['config'] ?? [])));
-
-        return $this;
-    }
-
-    /**
-     * @param string $handle
-     * @return $this
-     */
-    private function setHandler(string $handle)
-    {
-        $this->getRouteLeaf()->setHandler($handle);
-
-        return $this;
+        return array_merge_recursive($this->custom[$level] ?? [], $custom);
     }
 }

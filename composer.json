@@ -1,9 +1,7 @@
 {
-    "name": "air/router",
-	"description": "library router",
-    "keywords": [
-        "library router"
-    ],
+    "name": "air/route",
+	"description": "Simple request routing",
+    "keywords": ["routing", "route"],
     "license": "MIT",
     "authors": [
         {
@@ -12,8 +10,7 @@
         }
     ],
     "require": {
-        "php": "^7.1",
-        "nikic/fast-route": "^1.3"
+        "php": "^7.1"
     },
     "autoload": {
         "psr-4": {
@@ -22,7 +19,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Air\\Router\\Test\\": "tests/"
+            "Air\\Routing\\Test\\": "tests/"
         }
     },
     "require-dev": {

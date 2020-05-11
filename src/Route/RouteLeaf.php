@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Air\Routing\Route;
 
@@ -48,17 +49,17 @@ class RouteLeaf
     /**
      * @return array
      */
-    public function getConfig()
+    public function getCustom()
     {
-        return (array)$this->leafData['config'];
+        return (array)$this->leafData['custom'];
     }
 
     /**
-     * @param $config
+     * @param $addition
      */
-    public function setConfig($config): void
+    public function setCustom($addition): void
     {
-        $this->leafData['config'] = $config;
+        $this->leafData['custom'] = $addition;
     }
 
     /**

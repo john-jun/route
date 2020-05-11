@@ -64,21 +64,18 @@ class RouteTree
 
             $handler = [];
             foreach ($oldRouteLeaf->getMethod() as $method) {
-                $handler[$method] = $oldRouteLeaf->getHandler();
+                $handler[$method] = $oldRouteLeaf->getHandler()[$method] ?? $oldRouteLeaf->getHandler();
             }
 
-            $methods = $oldRouteLeaf->getMethod();
             foreach ($routeLeaf->getMethod() as $method) {
-                if (!in_array($method, $methods)) {
-                    $methods = array_merge($methods, [$method]) ;
-                }
-
                 $handler[$method] = $routeLeaf->getHandler();
+
+                if (!in_array($method, $oldRouteLeaf->getMethod())) {
+                    $oldRouteLeaf->setMethod(array_merge($oldRouteLeaf->getMethod(), [$method]));
+                }
             }
 
-            $oldRouteLeaf->setMethod($methods);
             $oldRouteLeaf->setHandler($handler);
-
             $routeLeaf = $oldRouteLeaf;
         }
 
@@ -88,12 +85,11 @@ class RouteTree
 
     /**
      * @param string $leafs
-     * @param RouteLeaf|null $routeLeaf
      * @return RouteLeaf|null
      */
-    public function search(string $leafs, RouteLeaf $routeLeaf = null)
+    public function search(string $leafs)
     {
-        $tree = $this->tree;
+        $tree = $this->getLeafs();
         $leafs = $this->split($leafs);
 
         foreach ($leafs as $leaf) {
@@ -108,6 +104,7 @@ class RouteTree
         }
 
         if (isset($tree[static::LEAF])) {
+            $routeLeaf = new RouteLeaf();
             $routeLeaf->setLeafData($tree[static::LEAF]);
 
             $matchesArgs = [];
