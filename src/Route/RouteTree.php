@@ -42,9 +42,9 @@ class RouteTree
     public function insert(RouteLeaf $routeLeaf)
     {
         $tree = &$this->tree;
-        $matches = [];
+        $tokens = $this->isStatic($routeLeaf->getUri());
 
-        foreach ($this->split($routeLeaf->getUri()) as $token) {
+        foreach ($tokens as $token) {
             if (strpos($token, '{') !== false) {
                 $matches[] = substr($token, 1, -1);
 
@@ -79,56 +79,73 @@ class RouteTree
             $routeLeaf = $oldRouteLeaf;
         }
 
-        $routeLeaf->setMatches($matches);
+        $routeLeaf->setMatches($matches ?? []);
         $tree[static::LEAF] = $routeLeaf->getLeafData();
     }
 
     /**
-     * @param string $leafs
+     * @param string $route
      * @return RouteLeaf|null
      */
-    public function search(string $leafs)
+    public function search(string $route)
     {
         $tree = $this->getLeafs();
-        $leafs = $this->split($leafs);
 
-        foreach ($leafs as $leaf) {
-            if (isset($tree[$leaf])) {
-                $tree = $tree[$leaf];
-            } elseif (isset($tree[static::PARAMETER])) {
-                $tree = $tree[static::PARAMETER];
-                $matches[] = $leaf;
-            } else {
+        if (!isset($tree[$route])) {
+            $leafs = $this->split($route);
+            foreach ($leafs as $leaf) {
+                if (isset($tree[$leaf])) {
+                    $tree = $tree[$leaf];
+                } elseif (isset($tree[static::PARAMETER])) {
+                    $tree = $tree[static::PARAMETER];
+                    $matches[] = $leaf;
+                } else {
+                    return null;
+                }
+            }
+
+            if (!isset($tree[static::LEAF])) {
                 return null;
             }
+        } else {
+            $tree = $tree[$route];
         }
 
-        if (isset($tree[static::LEAF])) {
-            $routeLeaf = new RouteLeaf();
-            $routeLeaf->setLeafData($tree[static::LEAF]);
+        $routeLeaf = new RouteLeaf();
+        $routeLeaf->setLeafData($tree[static::LEAF]);
 
-            $matchesArgs = [];
-            foreach ($routeLeaf->getMatches() as $key) {
-                $matchesArgs[$key] = array_shift($matches);
-            }
-            $routeLeaf->setMatches($matchesArgs);
-
-            return $routeLeaf;
+        $matchesArgs = [];
+        foreach ($routeLeaf->getMatches() as $key) {
+            $matchesArgs[$key] = array_shift($matches);
         }
+        $routeLeaf->setMatches($matchesArgs);
 
-        return null;
+        return $routeLeaf;
     }
 
     /**
-     * @param string $string
-     * @return false|string[]
+     * @param string $route
+     * @return string[]
      */
-    private function split(string $string)
+    private function split(string $route)
     {
-        if ($string === '/') {
-            return [$string];
+        if ($route === '/') {
+            return [$route];
         }
 
-        return explode(static::SEPARATOR, trim($string, static::SEPARATOR));
+        return explode(static::SEPARATOR, trim($route, static::SEPARATOR));
+    }
+
+    /**
+     * @param string $route
+     * @return false|string[]
+     */
+    private function isStatic(string $route)
+    {
+        if (!preg_match('/\{[^\/]+\}/i', $route)) {
+            return [$route];
+        }
+
+        return $this->split($route);
     }
 }

@@ -1,7 +1,6 @@
 <?php
-namespace Air\Routing\Test;
+namespace Air\Test;
 
-use Air\Routing\Exception\RouteException;
 use Air\Routing\Route;
 use PHPUnit\Framework\TestCase;
 
@@ -21,13 +20,14 @@ class RouteTest extends TestCase
     {
         $this->route = null;
     }
-
+    
     public function testAddRoute()
     {
         $this->route
-            ->prefix('test')
+            ->prefix('/test')
             ->custom(['np' => 'Test'])
-            ->group(['prefix' => 'test2'], function (Route $route) {
+            ->group(function (Route $route) {
+                $route->get('/msg/a', 'Message\ABC@index');
                 $route->get('/msg/{mid}', 'Message\ABC@index');
                 $route->cli('/msg/{mid}', 'Message\ABC@index');
                 $route->put('/msg/{mid}', 'Message\ABC@index');
@@ -36,9 +36,15 @@ class RouteTest extends TestCase
                 $route->addRoute(['PUT', 'POST'], '/msg/{mid}', 'Replace@index');
             });
 
-        $result = $this->route->dispatch('test/test2/msg/123123');
+        //print_r($this->route->routeTree()->getLeafs());
+
+        $result = $this->route->dispatch('/test/msg/123123');
+        $result2 = $this->route->dispatch('/test/msg/a');
+        $this->assertIsObject($result);
+        $this->assertIsObject($result2);
+
+        print_r($result2);
 
         $this->assertEmpty($this->route->dispatch('test/test/msg/123123'));
-        $this->assertIsObject($result);
     }
 }

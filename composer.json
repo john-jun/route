@@ -19,10 +19,12 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Air\\Routing\\Test\\": "tests/"
+            "Air\\Test\\": "tests/",
+            "Air\\Benchmark\\": "benchmark/"
         }
     },
     "require-dev": {
-        "phpunit/phpunit": "^8.5"
+        "phpunit/phpunit": "^8.5",
+        "phpbench/phpbench": "@dev"
     }
 }

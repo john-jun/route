@@ -58,7 +58,7 @@ class Route implements RouteInterface
      */
     public function prefix(string $prefix)
     {
-        $this->prefix[$this->groupLevel] = trim($prefix, '/');
+        $this->prefix[$this->groupLevel] = $prefix;
 
         return $this;
     }
@@ -173,13 +173,13 @@ class Route implements RouteInterface
     {
         if (is_null($level)) {
             if ($this->prefix) {
-                return join('/', $this->prefix) . '/' . trim($prefix, '/');
+                return join('/', $this->prefix) . $prefix;
             }
 
-            return '/' . trim($prefix, '/');
+            return $prefix;
         }
 
-        return ($this->prefix[$level] ?? '') . '/' . trim($prefix, '/');
+        return ($this->prefix[$level] ?? '') . $prefix;
     }
 
     /**
