@@ -3,9 +3,8 @@ declare(strict_types=1);
 
 namespace Air\Routing;
 
-use Air\Routing\Route\RouteLeaf;
-use Air\Routing\Route\RouteTree;
-use Air\Routing\Exception\RouteException;
+use Air\Routing\Engine\EngineDefault;
+use BadMethodCallException;
 use Closure;
 
 /**
@@ -20,6 +19,7 @@ use Closure;
  * @method Route head(string $uri, string $handle)
  * @method Route patch(string $uri, string $handle)
  * @method Route delete(string $uri, string $handle)
+ * @method Route options(string $uri, string $handle)
  */
 class Route implements RouteInterface
 {
@@ -29,14 +29,14 @@ class Route implements RouteInterface
     private $prefix;
 
     /**
-     * @var array
+     * @var EngineDefault
      */
-    private $custom;
+    private $engine;
 
     /**
-     * @var RouteTree
+     * @var array
      */
-    private $routeTree;
+    private $customData;
 
     /**
      * @var int
@@ -44,41 +44,21 @@ class Route implements RouteInterface
     private $groupLevel = 0;
 
     /**
-     * Router constructor
+     * Route constructor.
+     *
+     * @param EngineInterface|null $engine
      */
-    public function __construct()
+    public function __construct(?EngineInterface $engine = null)
     {
-        $this->routeTree = new RouteTree();
+        $this->engine = $engine ?: new EngineDefault();
     }
 
     /**
-     * set prefix
-     * @param string $prefix
-     * @return static
+     * Add route group
+     *
+     * @param $args
      */
-    public function prefix(string $prefix)
-    {
-        $this->prefix[$this->groupLevel] = $prefix;
-
-        return $this;
-    }
-
-    /**
-     * set addition args
-     * @param $addition
-     * @return $this
-     */
-    public function custom(array $addition)
-    {
-        $this->custom[$this->groupLevel] = $addition;
-
-        return $this;
-    }
-
-    /**
-     * add group route
-     */
-    public function group()
+    public function group($args): void
     {
         $args = func_get_args();
 
@@ -89,14 +69,14 @@ class Route implements RouteInterface
 
         $attr = array_shift($args);
         if (is_string($attr)) {
-            $this->prefix($this->mergePrefix($attr, $this->groupLevel));
+            $this->addPrefix($this->mergePrefix($attr, $this->groupLevel));
         } elseif (is_array($attr)) {
             if (isset($attr['prefix'])) {
-                $this->prefix($this->mergePrefix($attr['prefix'], $this->groupLevel));
+                $this->addPrefix($this->mergePrefix($attr['prefix'], $this->groupLevel));
             }
 
-            if (isset($attr['custom'])) {
-                $this->custom($this->mergeCustom((array)$attr['custom'], $this->groupLevel));
+            if (isset($attr['custom_data'])) {
+                $this->addCustomData($this->mergeCustomData((array)$attr['custom_data'], $this->groupLevel));
             }
         }
 
@@ -106,62 +86,85 @@ class Route implements RouteInterface
 
         unset(
             $this->prefix[$groupLevel],
-            $this->custom[$groupLevel]
+            $this->customData[$groupLevel]
         );
     }
 
     /**
-     * get routeTree obj
-     * @return RouteTree
+     * @return EngineInterface
      */
-    public function routeTree() : RouteTree
+    public function getEngine() : EngineInterface
     {
-        return $this->routeTree;
+        return $this->engine;
     }
 
     /**
-     * add route mapping
+     * Add Route
      * @param $method
      * @param string $route
      * @param $handler
-     * @return $this
      */
     public function addRoute($method, string $route, $handler)
     {
-        $routeLeaf = new RouteLeaf();
-        $routeLeaf->setUri($this->mergePrefix($route));
-        $routeLeaf->setCustom($this->mergeCustom([]));
-        $routeLeaf->setMethod($method);
-        $routeLeaf->setHandler($handler);
-
-        $this->routeTree()->insert($routeLeaf);
-
-        return $this;
+        $this->getEngine()->insert(
+            (array)$method,
+            $this->mergePrefix($route),
+            [
+                'handler' => $handler,
+                'custom_data' => $this->mergeCustomData([])
+            ]
+        );
     }
 
     /**
-     * search route
+     * Search route
+     *
      * @param string $route
-     * @return RouteLeaf|null
+     * @param null $method
+     * @return array
      */
-    public function dispatch(string $route)
+    public function dispatch(string $route, $method = null)
     {
-        return $this->routeTree()->search($route);
+        return $this->getEngine()->search($route);
     }
 
     /**
      * @param $method
      * @param $arguments
-     * @return $this
-     * @throws RouteException
      */
     public function __call($method, $arguments)
     {
-        if (in_array($method, ['get', 'any', 'cli', 'put', 'head', 'post', 'patch', 'delete', 'options'])) {
-            return $this->addRoute(strtoupper($method), ...$arguments);
+        if (!in_array($method, ['get', 'any', 'cli', 'put', 'head', 'post', 'patch', 'delete', 'options'])) {
+            throw new BadMethodCallException('Call to undefined method ' . __CLASS__ . '::' . $method . '()');
         }
 
-        throw new RouteException('Call to undefined method ' . __CLASS__ . '::' . $method . '()');
+        $this->addRoute(strtoupper($method), ...$arguments);
+    }
+
+    /**
+     * Set prefix
+     *
+     * @param string $prefix
+     * @return static
+     */
+    public function addPrefix(string $prefix)
+    {
+        $this->prefix[$this->groupLevel] = $prefix;
+
+        return $this;
+    }
+
+    /**
+     * Set customData
+     *
+     * @param array $customData
+     * @return $this
+     */
+    public function addCustomData(array $customData)
+    {
+        $this->customData[$this->groupLevel] = $customData;
+
+        return $this;
     }
 
     /**
@@ -183,20 +186,20 @@ class Route implements RouteInterface
     }
 
     /**
-     * @param array $custom
+     * @param array $customData
      * @param int|null $level
      * @return array
      */
-    private function mergeCustom(array $custom, int $level = null)
+    private function mergeCustomData(array $customData, int $level = null)
     {
         if (is_null($level)) {
-            if ($this->custom) {
-                return array_merge_recursive(...$this->custom);
+            if ($this->customData) {
+                return array_merge_recursive(...$this->customData);
             }
 
-            return $custom;
+            return $customData;
         }
 
-        return array_merge_recursive($this->custom[$level] ?? [], $custom);
+        return array_merge_recursive($this->customData[$level] ?? [], $customData);
     }
 }

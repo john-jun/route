@@ -17,7 +17,7 @@ class RouteBaseMatch extends RouteBase
      */
     protected function addRoutes(Route $route)
     {
-        $route->group(static function(Route $router) {
+        $route->addCustomData(['define' => 't1'])->group(static function(Route $router) {
             $router->get('/market', 'Market@all');
             $router->get('/market/hot', 'Market@hot');
             $router->get('/market/stat', 'Market@stat');
@@ -30,11 +30,11 @@ class RouteBaseMatch extends RouteBase
             $router->get('/graph/{minute}', 'Graph\Minute@data');
             $router->get('/graph/kline', 'Graph\KLine@data');
 
-            $router->get('/message/notice/a/b/c/d/e/d/s/d/s/s/s/s/sssss/d/d/e/s/s', 'Message\Notice@select');
             $router->put('/message/news', 'Message\News@insert');
             $router->get('/message/news', 'Message\News@list');
             $router->get('/message/details', 'Message\News@details');
             $router->get('/message/{banners}/{d}', 'Message\News@banners');
+            $router->get('/message/notice/a/b/c/d/e/d/s/d/s/s/s/s/sssss/d/d/e/s/s', 'Message\Notice@select');
         });
     }
 

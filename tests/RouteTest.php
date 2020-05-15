@@ -14,6 +14,25 @@ class RouteTest extends TestCase
     protected function setUp(): void
     {
         $this->route = new Route();
+        $this->route->group(['custom_data' => ['define' => 'NP']], static function(Route $router) {
+            $router->get('/market', 'Market@all');
+            $router->get('/market/hot', 'Market@hot');
+            $router->get('/market/stat', 'Market@stat');
+            $router->get('/market/gears', 'Market@gears');
+            $router->get('/market/{id}/{id}/{id}/{id}/{id}/{id}', 'Market@detail');
+
+            $router->put('/market/tw', 'Market\Sync@twn');
+            $router->put('/market/ib', 'Market\Sync@ibn');
+
+            $router->get('/graph/{minute}', 'Graph\Minute@data');
+            $router->get('/graph/kline', 'Graph\KLine@data');
+
+            $router->get('/message/notice/a/b/c/d/e/d/s/d/s/s/s/s/sssss/d/d/e/s/s', 'Message\Notice@select');
+            $router->put('/message/news', 'Message\News@insert');
+            $router->get('/message/news', 'Message\News@list');
+            $router->get('/message/details', 'Message\News@details');
+            $router->get('/message/{banners}/{d}', 'Message\News@banners');
+        });
     }
 
     protected function tearDown(): void
@@ -21,29 +40,17 @@ class RouteTest extends TestCase
         $this->route = null;
     }
     
-    public function testAddRoute()
+    public function testMatch()
     {
-        $this->route
-            ->prefix('/test')
-            ->custom(['np' => 'Test'])
-            ->group(function (Route $route) {
-                $route->get('/msg/a', 'Message\ABC@index');
-                $route->get('/msg/{mid}', 'Message\ABC@index');
-                $route->cli('/msg/{mid}', 'Message\ABC@index');
-                $route->put('/msg/{mid}', 'Message\ABC@index');
-                $route->post('/msg/{mid}', 'Message\ABC@index');
+        print_r($this->route->getEngine()->getData());
 
-                $route->addRoute(['PUT', 'POST'], '/msg/{mid}', 'Replace@index');
-            });
+        $result = $this->route->dispatch('/market/tw');
+        $result2 = $this->route->dispatch('/message/news');
+        $this->assertIsArray($result);
+        $this->assertIsArray($result2);
 
-        //print_r($this->route->routeTree()->getLeafs());
-
-        $result = $this->route->dispatch('/test/msg/123123');
-        $result2 = $this->route->dispatch('/test/msg/a');
-        $this->assertIsObject($result);
-        $this->assertIsObject($result2);
-
-        print_r($result2);
+//        print_r($result);
+//        print_r($result2);
 
         $this->assertEmpty($this->route->dispatch('test/test/msg/123123'));
     }
