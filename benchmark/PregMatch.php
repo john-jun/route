@@ -1,5 +1,5 @@
 <?php
-namespace Air\Benchmark;
+namespace Air\Routing\Benchmark;
 
 use PhpBench\Benchmark\Metadata\Annotations\Iterations;
 use PhpBench\Benchmark\Metadata\Annotations\Revs;

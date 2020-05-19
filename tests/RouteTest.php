@@ -1,5 +1,5 @@
 <?php
-namespace Air\Test;
+namespace Air\Routing\Test;
 
 use Air\Routing\Route;
 use PHPUnit\Framework\TestCase;

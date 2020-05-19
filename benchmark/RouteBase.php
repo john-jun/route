@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Air\Benchmark;
+namespace Air\Routing\Benchmark;
 
 use Air\Routing\Route;
 use PhpBench\Benchmark\Metadata\Annotations\BeforeMethods;

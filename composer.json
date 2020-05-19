@@ -19,8 +19,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Air\\Test\\": "tests/",
-            "Air\\Benchmark\\": "benchmark/"
+            "Air\\Routing\\Test\\": "tests/",
+            "Air\\Routing\\Benchmark\\": "benchmark/"
         }
     },
     "require-dev": {
