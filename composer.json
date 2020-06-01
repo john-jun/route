@@ -1,7 +1,7 @@
 {
-    "name": "air/route",
-	"description": "Simple request routing",
-    "keywords": ["routing", "route"],
+    "name": "john-jun/route",
+	"description": "A Simple restful style request routing",
+    "keywords": ["Air", "routing", "route"],
     "license": "MIT",
     "authors": [
         {
@@ -26,5 +26,10 @@
     "require-dev": {
         "phpunit/phpunit": "^8.5",
         "phpbench/phpbench": "@dev"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "1.0-dev"
+        }
     }
 }
